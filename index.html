@@ -1,0 +1,2801 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engagio - User Engagement Platform</title>
+    <meta name="description" content="Complete engagement platform with Voting, Lottery, Quiz, and Event Management">
+    <meta name="author" content="Sandip Nandi">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        engagio: {
+                            primary: '#6366f1',
+                            secondary: '#8b5cf6',
+                            accent: '#ec4899',
+                            dark: '#0f172a',
+                            light: '#f8fafc'
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'wheel': 'wheel 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite',
+                    },
+                    keyframes: {
+                        wheel: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f46e5;
+        }
+        
+        /* Dark mode scrollbar */
+        .dark ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #6366f1;
+        }
+        
+        /* Lottery Wheel Styles */
+        .wheel-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 0 auto;
+        }
+        
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            border: 8px solid #fff;
+        }
+        
+        .wheel.dark {
+            border-color: #1e293b;
+        }
+        
+        .wheel-segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            transform-origin: right bottom;
+            left: 0;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .wheel-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6366f1;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+            border: 4px solid #6366f1;
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #ec4899;
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+        
+        /* Quiz Answer Visualization */
+        .answer-bubble {
+            transition: all 0.5s ease;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Gradient Backgrounds */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-bg-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .gradient-bg-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        /* Loading Spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 9999;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+        .toast.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .toast.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        
+        /* Card Hover Effects */
+        .hover-card {
+            transition: all 0.3s ease;
+        }
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        /* Confetti Animation */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s ease-out forwards;
+            z-index: 9999;
+        }
+        
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+        
+        .dark .modal-content {
+            background: #1e293b;
+            color: white;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        /* QR Code Container */
+        #qrcode img {
+            margin: 0 auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+<base target="_blank">
+</head>
+<body class="bg-gray-50 dark:bg-slate-900 text-gray-800 dark:text-gray-100 transition-colors duration-300">
+
+    <!-- Theme Toggle Script (Pre-load to prevent flash) -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-700 z-50 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center gap-3 cursor-pointer" onclick="showDashboard()">
+                        <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                            E
+                        </div>
+                        <span class="font-bold text-2xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                            Engagio
+                        </span>
+                    </div>
+                    
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:ml-8 md:flex md:space-x-4" id="nav-links" style="display: none;">
+                        <button onclick="showModule('voting')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fas fa-vote-yea mr-2"></i>Voting
+                        </button>
+                        <button onclick="showModule('lottery')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fas fa-dharmachakra mr-2"></i>Lottery
+                        </button>
+                        <button onclick="showModule('quiz')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fas fa-brain mr-2"></i>Quiz
+                        </button>
+                        <button onclick="showModule('events')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fas fa-calendar-alt mr-2"></i>Events
+                        </button>
+                        <button onclick="showModule('admin')" id="admin-nav-btn" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all" style="display: none;">
+                            <i class="fas fa-cog mr-2"></i>Admin
+                        </button>
+                        <button onclick="showModule('superadmin')" id="superadmin-nav-btn" class="nav-btn px-3 py-2 rounded-md text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all hidden">
+                            <i class="fas fa-crown mr-2"></i>Super Admin
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all" aria-label="Toggle theme">
+                        <i class="fas fa-sun text-xl dark:hidden"></i>
+                        <i class="fas fa-moon text-xl hidden dark:block"></i>
+                    </button>
+                    
+                    <!-- User Menu -->
+                    <div id="user-menu" class="hidden flex items-center gap-3">
+                        <span id="user-email" class="text-sm text-gray-600 dark:text-gray-300 hidden sm:block"></span>
+                        <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+            <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-nav-links" style="display: none;">
+                <button onclick="showModule('voting')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    <i class="fas fa-vote-yea mr-2"></i>Voting
+                </button>
+                <button onclick="showModule('lottery')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    <i class="fas fa-dharmachakra mr-2"></i>Lottery
+                </button>
+                <button onclick="showModule('quiz')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    <i class="fas fa-brain mr-2"></i>Quiz
+                </button>
+                <button onclick="showModule('events')" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+                    <i class="fas fa-calendar-alt mr-2"></i>Events
+                </button>
+                <button onclick="showModule('admin')" id="mobile-admin-nav" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-slate-700" style="display: none;">
+                    <i class="fas fa-cog mr-2"></i>Admin Panel
+                </button>
+                <button onclick="showModule('superadmin')" id="mobile-superadmin-nav" class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 hidden">
+                    <i class="fas fa-crown mr-2"></i>Super Admin
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-16 min-h-screen">
+        
+        <!-- ==================== AUTH SECTION ==================== -->
+        <section id="auth-section" class="min-h-screen flex items-center justify-center p-4 gradient-bg">
+            <div class="glass rounded-2xl shadow-2xl p-8 w-full max-w-md transform transition-all hover:scale-[1.02]">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 gradient-bg rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-4 shadow-xl">
+                        E
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Welcome to Engagio</h1>
+                    <p class="text-gray-600 dark:text-gray-300">Sign in to access the platform</p>
+                </div>
+                
+                <!-- Auth Tabs -->
+                <div class="flex mb-6 bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+                    <button onclick="switchAuthTab('login')" id="tab-login" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm">
+                        Login
+                    </button>
+                    <button onclick="switchAuthTab('register')" id="tab-register" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:text-indigo-600">
+                        Register
+                    </button>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+                        <input type="email" id="login-email" required class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                        <input type="password" id="login-password" required class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="w-full py-3 px-4 gradient-bg text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+                    </button>
+                </form>
+                
+                <!-- Register Form -->
+                <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                        <input type="text" id="register-name" required class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="John Doe">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+                        <input type="email" id="register-email" required class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                        <input type="password" id="register-password" required minlength="6" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="Min 6 characters">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                        <select id="register-role" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-3 px-4 gradient-bg-2 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                        <i class="fas fa-user-plus mr-2"></i>Create Account
+                    </button>
+                </form>
+                
+                <div class="mt-6 text-center">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        By signing in, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                </div>
+                
+                <!-- Footer Credit -->
+                <div class="mt-8 pt-6 border-t border-gray-200 dark:border-slate-600 text-center">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-code mr-2 text-indigo-500"></i>
+                        Developed by <span class="font-semibold text-indigo-600 dark:text-indigo-400">Sandip Nandi</span>
+                    </p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">© 2024 Engagio Platform</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== DASHBOARD ==================== -->
+        <section id="dashboard-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Dashboard</h2>
+                <p class="text-gray-600 dark:text-gray-400">Welcome back! Here's what's happening today.</p>
+            </div>
+            
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="glass rounded-xl p-6 hover-card border-l-4 border-indigo-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Active Votes</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white" id="stat-active-votes">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <i class="fas fa-vote-yea text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-6 hover-card border-l-4 border-pink-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Lottery Entries</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white" id="stat-lottery-entries">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center text-pink-600 dark:text-pink-400">
+                            <i class="fas fa-ticket-alt text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-6 hover-card border-l-4 border-purple-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Quiz Participants</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white" id="stat-quiz-participants">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600 dark:text-purple-400">
+                            <i class="fas fa-brain text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-6 hover-card border-l-4 border-blue-500">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Upcoming Events</p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white" id="stat-upcoming-events">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i class="fas fa-calendar-alt text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <button onclick="showModule('voting')" class="glass rounded-xl p-6 hover-card text-left group">
+                    <div class="w-14 h-14 gradient-bg rounded-xl flex items-center justify-center text-white text-2xl mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-vote-yea"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-1">Voting System</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Create polls and view live results</p>
+                </button>
+                
+                <button onclick="showModule('lottery')" class="glass rounded-xl p-6 hover-card text-left group">
+                    <div class="w-14 h-14 gradient-bg-2 rounded-xl flex items-center justify-center text-white text-2xl mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-dharmachakra"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-1">Lottery System</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Spin the wheel and pick winners</p>
+                </button>
+                
+                <button onclick="showModule('quiz')" class="glass rounded-xl p-6 hover-card text-left group">
+                    <div class="w-14 h-14 gradient-bg-3 rounded-xl flex items-center justify-center text-white text-2xl mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-1">Live Quiz</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Interactive quizzes with real-time answers</p>
+                </button>
+                
+                <button onclick="showModule('events')" class="glass rounded-xl p-6 hover-card text-left group">
+                    <div class="w-14 h-14 bg-gradient-to-br from-green-400 to-teal-500 rounded-xl flex items-center justify-center text-white text-2xl mb-4 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-1">Events</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Manage events and registrations</p>
+                </button>
+            </div>
+            
+            <!-- Recent Activity Chart -->
+            <div class="glass rounded-xl p-6">
+                <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Activity Overview</h3>
+                <div style="height: 250px; position: relative;">
+    <canvas id="dashboardChart"></canvas>
+</div>
+            </div>
+        </section>
+
+        <!-- ==================== VOTING MODULE ==================== -->
+        <section id="voting-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                        <i class="fas fa-vote-yea text-indigo-500 mr-3"></i>Voting System
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400">Create polls and let your audience vote in real-time</p>
+                </div>
+                <button onclick="openVotingModal()" id="create-vote-btn" class="hidden px-6 py-3 gradient-bg text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    <i class="fas fa-plus mr-2"></i>Create Poll
+                </button>
+            </div>
+            
+            <!-- Active Polls Grid -->
+            <div id="polls-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full text-center py-12">
+                    <div class="loader mx-auto mb-4"></div>
+                    <p class="text-gray-600 dark:text-gray-400">Loading polls...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== LOTTERY MODULE ==================== -->
+        <section id="lottery-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                        <i class="fas fa-dharmachakra text-pink-500 mr-3"></i>Lottery System
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400">Enter participants and spin the wheel to pick winners</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="openLotteryModal()" id="lottery-admin-btn" class="hidden px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-all">
+                        <i class="fas fa-cog mr-2"></i>Manage
+                    </button>
+                    <button onclick="openBulkUploadModal()" id="lottery-upload-btn" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
+                        <i class="fas fa-upload mr-2"></i>Bulk Upload
+                    </button>
+                    <button onclick="downloadSampleExcel('lottery')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all">
+                        <i class="fas fa-file-excel mr-2"></i>Sample Format
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Lottery Events List -->
+            <div id="lottery-events-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Events will be loaded here -->
+            </div>
+            
+            <!-- Active Lottery Display -->
+            <div id="active-lottery" class="hidden glass rounded-2xl p-8 text-center">
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-6" id="active-lottery-title">Lottery Event</h3>
+                
+                <div class="wheel-container mb-8">
+                    <div class="wheel-pointer"></div>
+                    <div id="lottery-wheel" class="wheel">
+                        <!-- Wheel segments generated by JS -->
+                    </div>
+                    <div class="wheel-center">GO</div>
+                </div>
+                
+                <div class="flex justify-center gap-4 mb-6">
+                    <button onclick="spinWheel()" id="spin-btn" class="px-8 py-4 gradient-bg-2 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all">
+                        <i class="fas fa-play mr-2"></i>SPIN THE WHEEL
+                    </button>
+                    <button onclick="resetWheel()" class="px-6 py-4 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-full shadow-lg transition-all">
+                        <i class="fas fa-redo mr-2"></i>Reset
+                    </button>
+                </div>
+                
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    <i class="fas fa-users mr-2"></i>
+                    <span id="participant-count">0</span> participants
+                </p>
+            </div>
+            
+            <!-- Entry Form -->
+            <div id="lottery-entry-form" class="glass rounded-xl p-6 max-w-md mx-auto">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Enter Lottery</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4 text-sm">Select an event above or enter your details below</p>
+                
+                <form onsubmit="handleLotteryEntry(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Event</label>
+                        <select id="entry-event-id" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                            <option value="">Choose an event...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                        <input type="text" id="entry-name" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Your name">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
+                        <input type="tel" id="entry-phone" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="+1234567890">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email (Optional)</label>
+                        <input type="email" id="entry-email" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="you@example.com">
+                    </div>
+                    <button type="submit" class="w-full py-3 gradient-bg text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                        <i class="fas fa-ticket-alt mr-2"></i>Enter Lottery
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================== QUIZ MODULE ==================== -->
+        <section id="quiz-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                        <i class="fas fa-brain text-purple-500 mr-3"></i>Live Quiz
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400">Interactive quizzes with real-time answer visualization</p>
+                </div>
+                <button onclick="openQuizModal()" id="create-quiz-btn" class="hidden px-6 py-3 gradient-bg-3 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    <i class="fas fa-plus mr-2"></i>Create Quiz
+                </button>
+            </div>
+            
+            <!-- Quiz List -->
+            <div id="quiz-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Quizzes loaded here -->
+            </div>
+            
+            <!-- Active Quiz Display -->
+            <div id="active-quiz-display" class="hidden glass rounded-2xl p-8">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800 dark:text-white" id="active-quiz-title">Quiz Title</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1" id="active-quiz-question">Question text here...</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-4xl font-bold text-indigo-600 dark:text-indigo-400" id="quiz-timer">30</div>
+                        <p class="text-sm text-gray-500">seconds left</p>
+                    </div>
+                </div>
+                
+                <!-- Timer Bar -->
+                <div class="progress-bar mb-8">
+                    <div id="quiz-timer-bar" class="progress-fill" style="width: 100%"></div>
+                </div>
+                
+                <!-- Answer Visualization (Admin View) -->
+                <div id="quiz-visualization" class="hidden mb-8">
+                    <h4 class="font-semibold text-gray-800 dark:text-white mb-4">Live Results</h4>
+                    <div id="answer-bubbles" class="flex flex-wrap gap-4 justify-center min-h-[200px] items-center">
+                        <!-- Bubbles generated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Answer Options (User View) -->
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Options loaded here -->
+                </div>
+                
+                <!-- Quiz Results -->
+                <div id="quiz-results" class="hidden mt-8 p-6 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                    <h4 class="font-bold text-green-800 dark:text-green-400 mb-4">
+                        <i class="fas fa-check-circle mr-2"></i>Correct Answer: <span id="correct-answer-text"></span>
+                    </h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Winners who answered correctly:</p>
+                    <div id="winners-list" class="flex flex-wrap gap-2">
+                        <!-- Winners loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== EVENTS MODULE ==================== -->
+        <section id="events-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                        <i class="fas fa-calendar-alt text-blue-500 mr-3"></i>Event Management
+                    </h2>
+                    <p class="text-gray-600 dark:text-gray-400">Create events, generate QR codes, and manage registrations</p>
+                </div>
+                <button onclick="openEventModal()" id="create-event-btn" class="hidden px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    <i class="fas fa-plus mr-2"></i>Create Event
+                </button>
+            </div>
+            
+            <!-- Events Grid -->
+            <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Events loaded here -->
+            </div>
+        </section>
+
+        <!-- ==================== ADMIN PANEL ==================== -->
+        <section id="admin-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                    <i class="fas fa-cog text-gray-600 mr-3"></i>Admin Panel
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400">Manage all platform settings and view analytics</p>
+            </div>
+            
+            <!-- Admin Tabs -->
+            <div class="flex flex-wrap gap-2 mb-6 bg-gray-100 dark:bg-slate-800 p-2 rounded-xl">
+                <button onclick="switchAdminTab('overview')" class="admin-tab active px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm" data-tab="overview">
+                    <i class="fas fa-chart-line mr-2"></i>Overview
+                </button>
+                <button onclick="switchAdminTab('users')" class="admin-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700" data-tab="users">
+                    <i class="fas fa-users mr-2"></i>Users
+                </button>
+                <button onclick="switchAdminTab('data')" class="admin-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700" data-tab="data">
+                    <i class="fas fa-database mr-2"></i>Data Export
+                </button>
+                <button onclick="switchAdminTab('super')" id="super-admin-tab" class="hidden admin-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700" data-tab="super">
+                    <i class="fas fa-crown mr-2"></i>Super Admin
+                </button>
+            </div>
+            
+            <!-- Overview Tab -->
+            <div id="admin-overview" class="admin-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Platform Analytics</h3>
+                        <div style="height: 250px; position: relative;">
+    <canvas id="adminChart"></canvas>
+</div>
+                    </div>
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Recent Activity</h3>
+                        <div id="activity-log" class="space-y-3 max-h-[300px] overflow-y-auto">
+                            <!-- Activity items loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass rounded-xl p-6 text-center">
+                        <div class="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2" id="total-users">0</div>
+                        <p class="text-gray-600 dark:text-gray-400">Total Users</p>
+                    </div>
+                    <div class="glass rounded-xl p-6 text-center">
+                        <div class="text-4xl font-bold text-pink-600 dark:text-pink-400 mb-2" id="total-votes">0</div>
+                        <p class="text-gray-600 dark:text-gray-400">Total Votes Cast</p>
+                    </div>
+                    <div class="glass rounded-xl p-6 text-center">
+                        <div class="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2" id="total-events">0</div>
+                        <p class="text-gray-600 dark:text-gray-400">Total Events</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Tab -->
+            <div id="admin-users" class="admin-content hidden">
+                <div class="glass rounded-xl overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white">User Management</h3>
+                        <button onclick="loadUsers()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-all">
+                            <i class="fas fa-sync mr-2"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-slate-800">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Role</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Joined</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body" class="divide-y divide-gray-200 dark:divide-slate-700">
+                                <!-- Users loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Export Tab -->
+            <div id="admin-data" class="admin-content hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-vote-yea text-indigo-500 mr-2"></i>Voting Data
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export all voting data including poll details and vote counts</p>
+                        <button onclick="exportData('votes')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all">
+                            <i class="fas fa-download mr-2"></i>Export to Excel
+                        </button>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-ticket-alt text-pink-500 mr-2"></i>Lottery Data
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export all lottery participants and winners</p>
+                        <button onclick="exportData('lottery')" class="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-all">
+                            <i class="fas fa-download mr-2"></i>Export to Excel
+                        </button>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-brain text-purple-500 mr-2"></i>Quiz Data
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export quiz questions, answers, and participant responses</p>
+                        <button onclick="exportData('quiz')" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all">
+                            <i class="fas fa-download mr-2"></i>Export to Excel
+                        </button>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>Event Data
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export all event details and registrations</p>
+                        <button onclick="exportData('events')" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all">
+                            <i class="fas fa-download mr-2"></i>Export to Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Super Admin Tab -->
+            <div id="admin-super" class="admin-content hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-user-shield text-yellow-500 mr-2"></i>Create Admin
+                        </h3>
+                        <form onsubmit="createAdmin(event)" class="space-y-4">
+                            <input type="email" id="new-admin-email" required placeholder="Admin Email" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                            <input type="password" id="new-admin-password" required placeholder="Password" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                            <select id="new-admin-role" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                                <option value="admin">Admin</option>
+                                
+                            </select>
+                            <button type="submit" class="w-full py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-all">
+                                <i class="fas fa-plus mr-2"></i>Create Admin Account
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                            <i class="fas fa-database text-green-500 mr-2"></i>Database Backup
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export entire database as JSON for backup</p>
+                        <button onclick="backupDatabase()" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all mb-3">
+                            <i class="fas fa-download mr-2"></i>Download Backup
+                        </button>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Last backup: <span id="last-backup">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ==================== MODALS ==================== -->
+    
+    <!-- Voting Modal -->
+    <div id="voting-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Create New Poll</h3>
+                <button onclick="closeModal('voting-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form onsubmit="createPoll(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Poll Title</label>
+                    <input type="text" id="poll-title" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="What should we name our new product?">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea id="poll-description" rows="3" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Optional description..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Options (comma separated)</label>
+                    <input type="text" id="poll-options" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Option 1, Option 2, Option 3">
+                    <p class="text-xs text-gray-500 mt-1">Enter at least 2 options separated by commas</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                    <input type="datetime-local" id="poll-end-date" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal('voting-modal')" class="flex-1 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 py-2 gradient-bg text-white rounded-lg hover:shadow-lg transition-all">Create Poll</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lottery Modal -->
+    <div id="lottery-modal" class="modal-overlay">
+        <div class="modal-content max-w-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Manage Lottery Events</h3>
+                <button onclick="closeModal('lottery-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 dark:text-white mb-3">Create New Event</h4>
+                <form onsubmit="createLotteryEvent(event)" class="flex gap-3">
+                    <input type="text" id="lottery-event-name" required placeholder="Event Name" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                    <button type="submit" class="px-6 py-2 gradient-bg-2 text-white rounded-lg hover:shadow-lg transition-all">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </form>
+            </div>
+            
+            <div>
+                <h4 class="font-semibold text-gray-800 dark:text-white mb-3">Existing Events</h4>
+                <div id="lottery-events-list" class="space-y-2 max-h-[300px] overflow-y-auto">
+                    <!-- Events listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quiz-modal" class="modal-overlay">
+        <div class="modal-content max-w-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Create New Quiz</h3>
+                <button onclick="closeModal('quiz-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form onsubmit="createQuiz(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quiz Title</label>
+                    <input type="text" id="quiz-title" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Trivia Night #1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question</label>
+                    <input type="text" id="quiz-question" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="What is the capital of France?">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Options (comma separated)</label>
+                    <input type="text" id="quiz-options" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Paris, London, Berlin, Madrid">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correct Answer</label>
+                    <input type="text" id="quiz-correct" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Paris">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timer (seconds)</label>
+                    <input type="number" id="quiz-timer-input" required min="5" max="300" value="30" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal('quiz-modal')" class="flex-1 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 py-2 gradient-bg-3 text-white rounded-lg hover:shadow-lg transition-all">Create Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Event Modal -->
+    <div id="event-modal" class="modal-overlay">
+        <div class="modal-content max-w-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Create New Event</h3>
+                <button onclick="closeModal('event-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form onsubmit="createEvent(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Title</label>
+                    <input type="text" id="event-title" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Annual Conference 2024">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea id="event-description" rows="3" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Event details..."></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                        <input type="date" id="event-date" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost ($)</label>
+                        <input type="number" id="event-cost" min="0" value="0" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+                    <input type="text" id="event-location" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" placeholder="Event venue address">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal('event-modal')" class="flex-1 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:shadow-lg transition-all">Create Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Event QR Code</h3>
+                <button onclick="closeModal('qr-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="qrcode" class="mb-4"></div>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Scan to register for this event</p>
+            <button onclick="downloadQR()" class="px-6 py-2 gradient-bg text-white rounded-lg hover:shadow-lg transition-all">
+                <i class="fas fa-download mr-2"></i>Download QR
+            </button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="modal-overlay">
+        <div class="modal-content text-center max-w-md">
+            <div class="mb-6">
+                <div class="w-24 h-24 gradient-bg-2 rounded-full flex items-center justify-center text-white text-4xl mx-auto mb-4 animate-bounce">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">🎉 We Have a Winner! 🎉</h3>
+            </div>
+            <div class="bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-xl p-6 mb-6">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Congratulations to</p>
+                <h4 id="winner-name" class="text-3xl font-bold text-gray-800 dark:text-white mb-2">Winner Name</h4>
+                <p id="winner-phone" class="text-lg text-indigo-600 dark:text-indigo-400 font-mono">+1234567890</p>
+            </div>
+            <button onclick="closeModal('winner-modal')" class="px-8 py-3 gradient-bg text-white rounded-lg hover:shadow-lg transition-all">
+                <i class="fas fa-check mr-2"></i>Awesome!
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    
+    <!-- Bulk Upload Modal -->
+    <div id="bulk-upload-modal" class="modal-overlay">
+        <div class="modal-content max-w-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Bulk Upload Participants</h3>
+                <button onclick="closeModal('bulk-upload-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Upload Excel file with columns: Name, Phone, Email</p>
+                <input type="file" id="bulk-upload-file" accept=".xlsx,.xls" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+                <button onclick="processBulkUpload()" class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-upload mr-2"></i>Upload
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voting Report Modal -->
+    <div id="voting-report-modal" class="modal-overlay">
+        <div class="modal-content max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white">Voting Reports</h3>
+                <button onclick="closeModal('voting-report-modal')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="voting-reports-container" class="space-y-4">
+                <!-- Reports loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SUPER ADMIN SECTION ==================== -->
+    <section id="superadmin-section" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                <i class="fas fa-crown text-amber-500 mr-3"></i>Super Admin Control Center
+            </h2>
+            <p class="text-gray-600 dark:text-gray-400">Complete platform control and management</p>
+        </div>
+
+        <!-- Super Admin Tabs -->
+        <div class="flex flex-wrap gap-2 mb-6 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-xl border border-amber-200 dark:border-amber-800">
+            <button onclick="switchSuperAdminTab('admins')" class="super-admin-tab active px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm" data-tab="admins">
+                <i class="fas fa-user-shield mr-2"></i>Manage Admins
+            </button>
+            <button onclick="switchSuperAdminTab('database')" class="super-admin-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700" data-tab="database">
+                <i class="fas fa-database mr-2"></i>Database Control
+            </button>
+            <button onclick="switchSuperAdminTab('settings')" class="super-admin-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700" data-tab="settings">
+                <i class="fas fa-sliders-h mr-2"></i>Settings
+            </button>
+        </div>
+
+        <!-- Manage Admins Tab -->
+        <div id="superadmin-admins" class="super-admin-content">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass rounded-xl p-6 border-2 border-amber-200 dark:border-amber-800">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Create New Admin</h3>
+                    <form onsubmit="createAdmin(event)" class="space-y-4">
+                        <input type="text" id="new-admin-name" placeholder="Full Name" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" />
+                        <input type="email" id="new-admin-email" placeholder="Email Address" required class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" />
+                        <input type="password" id="new-admin-password" placeholder="Password" required minlength="6" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white" />
+                        <select id="new-admin-role" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white">
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                        </select>
+                        <button type="submit" class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                            <i class="fas fa-plus mr-2"></i>Create Admin
+                        </button>
+                    </form>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Existing Admins</h3>
+                    <div id="admin-users-list" class="space-y-3 max-h-[400px] overflow-y-auto">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Control Tab -->
+        <div id="superadmin-database" class="super-admin-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass rounded-xl p-6 border-2 border-red-200 dark:border-red-800">
+                    <h3 class="font-bold text-lg text-red-600 dark:text-red-400 mb-4">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Danger Zone
+                    </h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">These actions cannot be undone.</p>
+                    <div class="space-y-2">
+                        <button onclick="clearCollection('polls')" class="w-full py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-left px-4 hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Clear All Polls
+                        </button>
+                        <button onclick="clearCollection('lotteryEvents')" class="w-full py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-left px-4 hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Clear All Lottery Events
+                        </button>
+                        <button onclick="clearCollection('lotteryEntries')" class="w-full py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-left px-4 hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Clear All Lottery Entries
+                        </button>
+                        <button onclick="clearCollection('quizzes')" class="w-full py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-left px-4 hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Clear All Quizzes
+                        </button>
+                        <button onclick="clearCollection('events')" class="w-full py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-left px-4 hover:bg-red-200">
+                            <i class="fas fa-trash mr-2"></i>Clear All Events
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">
+                        <i class="fas fa-download text-green-500 mr-2"></i>Database Backup
+                    </h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Export entire database as JSON</p>
+                    <button onclick="backupDatabase()" class="w-full py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-all">
+                        <i class="fas fa-download mr-2"></i>Download Full Backup
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="superadmin-settings" class="super-admin-content hidden">
+            <div class="glass rounded-xl p-6 max-w-2xl">
+                <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Platform Settings</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                        <div>
+                            <span class="font-medium text-gray-800 dark:text-white">Public Registration</span>
+                            <p class="text-sm text-gray-500">Allow new users to register</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="setting-public-reg" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-amber-300 dark:peer-focus:ring-amber-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-gray-600 dark:text-gray-400 text-sm">
+                <i class="fas fa-heart text-red-500 mr-2"></i>
+                Built with passion by <span class="font-semibold text-indigo-600 dark:text-indigo-400">Sandip Nandi</span>
+            </p>
+            <p class="text-gray-400 dark:text-gray-500 text-xs mt-2">
+                Engagio Platform © 2024 | Powered by Firebase
+            </p>
+        </div>
+    </footer>
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+        // ==========================================
+        // FIREBASE CONFIGURATION - REPLACE WITH YOURS
+        // ==========================================
+        const firebaseConfig = {
+  apiKey: "AIzaSyD_G6zfZ5Y_3mkk0T4vAzNu4_l5OwGMgos",
+  authDomain: "engagio-9ef8c.firebaseapp.com",
+  projectId: "engagio-9ef8c",
+  storageBucket: "engagio-9ef8c.firebasestorage.app",
+  messagingSenderId: "865079690876",
+  appId: "1:865079690876:web:0a56eea0ebeb4a25286bf9"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ==========================================
+        // GLOBAL STATE
+        // ==========================================
+        let currentUser = null;
+        let userRole = 'user';
+        let currentLotteryEvent = null;
+        let currentQuiz = null;
+        let quizTimer = null;
+        let chartInstances = {};
+
+        // ==========================================
+        // THEME MANAGEMENT
+        // ==========================================
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // ==========================================
+        // AUTHENTICATION
+        // ==========================================
+        function switchAuthTab(tab) {
+            document.getElementById('tab-login').className = tab === 'login' 
+                ? 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm'
+                : 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:text-indigo-600';
+            document.getElementById('tab-register').className = tab === 'register'
+                ? 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm'
+                : 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all text-gray-600 dark:text-gray-300 hover:text-indigo-600';
+            
+            document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                showToast('Logging in...', 'info');
+                await auth.signInWithEmailAndPassword(email, password);
+                showToast('Welcome back!', 'success');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('register-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const role = document.getElementById('register-role').value;
+            
+            try {
+                showToast('Creating account...', 'info');
+                const userCred = await auth.createUserWithEmailAndPassword(email, password);
+                await userCred.user.updateProfile({ displayName: name });
+                
+                // Save user data to Firestore
+                await db.collection('users').doc(userCred.user.uid).set({
+                    name: name,
+                    email: email,
+                    role: role,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    engagementScore: 0
+                });
+                
+                showToast('Account created successfully!', 'success');
+                switchAuthTab('login');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            await auth.signOut();
+            showToast('Logged out successfully', 'success');
+        }
+
+        // Auth State Listener
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('user-menu').classList.remove('hidden');
+                document.getElementById('nav-links').style.display = 'flex';
+                document.getElementById('mobile-nav-links').style.display = 'block';
+                document.getElementById('user-email').textContent = user.email;
+                
+                // Check if super admin
+                if (user.email === 'sandipnandi2000@gmail.com') {
+                    userRole = 'superadmin';
+                    await db.collection('users').doc(user.uid).update({ role: 'superadmin' });
+                } else {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        userRole = userDoc.data().role || 'user';
+                    } else {
+                        await db.collection('users').doc(user.uid).set({
+                            name: user.displayName || 'User',
+                            email: user.email,
+                            role: 'user',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            engagementScore: 0
+                        });
+                        userRole = 'user';
+                    }
+                }
+                updateUIForRole();
+                
+                showDashboard();
+                loadDashboardData();
+            } else {
+                currentUser = null;
+                userRole = 'user';
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('user-menu').classList.add('hidden');
+                document.getElementById('nav-links').style.display = 'none';
+                document.getElementById('mobile-nav-links').style.display = 'none';
+                hideAllSections();
+            }
+        });
+
+        function updateUIForRole() {
+            const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+            const isSuper = userRole === 'superadmin';
+            
+            document.getElementById('create-vote-btn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('lottery-admin-btn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('create-quiz-btn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('create-event-btn').classList.toggle('hidden', !isAdmin);
+            document.getElementById('admin-nav-btn').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('mobile-admin-nav').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('super-admin-tab').classList.toggle('hidden', !isSuper);
+        }
+
+        // ==========================================
+        // NAVIGATION
+        // ==========================================
+        function hideAllSections() {
+            ['dashboard-section', 'voting-section', 'lottery-section', 'quiz-section', 'events-section', 'admin-section', 'superadmin-section'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+        }
+
+        function showDashboard() {
+            hideAllSections();
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            loadDashboardData();
+        }
+
+        function showModule(module) {
+            hideAllSections();
+            document.getElementById(`${module}-section`).classList.remove('hidden');
+            
+            switch(module) {
+                case 'voting': loadPolls(); break;
+                case 'lottery': loadLotteryEvents(); break;
+                case 'quiz': loadQuizzes(); break;
+                case 'events': loadEvents(); break;
+                case 'admin': loadAdminData(); break;
+            }
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        // ==========================================
+        // DASHBOARD
+        // ==========================================
+        async function loadDashboardData() {
+            // Get counts
+            const votesSnap = await db.collection('polls').where('active', '==', true).get();
+            const lotterySnap = await db.collection('lotteryEntries').get();
+            const quizSnap = await db.collection('quizResponses').get();
+            const eventsSnap = await db.collection('events').where('date', '>=', new Date().toISOString().split('T')[0]).get();
+            
+            document.getElementById('stat-active-votes').textContent = votesSnap.size;
+            document.getElementById('stat-lottery-entries').textContent = lotterySnap.size;
+            document.getElementById('stat-quiz-participants').textContent = quizSnap.size;
+            document.getElementById('stat-upcoming-events').textContent = eventsSnap.size;
+            
+            // Create chart
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            if (chartInstances.dashboard) chartInstances.dashboard.destroy();
+            
+            chartInstances.dashboard = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Activity',
+                        data: [12, 19, 15, 25, 22, 30, 28],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // VOTING MODULE
+        // ==========================================
+        async function loadPolls() {
+            const container = document.getElementById('polls-container');
+            container.innerHTML = '<div class="col-span-full text-center py-12"><div class="loader mx-auto mb-4"></div></div>';
+            
+            const snapshot = await db.collection('polls').orderBy('createdAt', 'desc').get();
+            
+            if (snapshot.empty) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="text-6xl mb-4">🗳️</div>
+                        <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-2">No active polls</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Create your first poll to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const poll = doc.data();
+                const isActive = new Date(poll.endDate) > new Date();
+                const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0);
+                
+                const card = document.createElement('div');
+                card.className = 'glass rounded-xl p-6 hover-card';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-1">${poll.title}</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${poll.description || ''}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'}">
+                            ${isActive ? 'Active' : 'Ended'}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        ${poll.options.map((opt, idx) => `
+                            <div class="relative">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-700 dark:text-gray-300">${opt.text}</span>
+                                    <span class="text-gray-500">${opt.votes || 0} votes</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${totalVotes > 0 ? (opt.votes || 0) / totalVotes * 100 : 0}%"></div>
+                                </div>
+                                ${isActive ? `
+                                    <button onclick="vote('${doc.id}', ${idx})" class="mt-2 w-full py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all">
+                                        Vote for this option
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <span class="text-sm text-gray-500">
+                            <i class="fas fa-users mr-1"></i> ${totalVotes} total votes
+                        </span>
+                        <span class="text-sm text-gray-500">
+                            Ends: ${new Date(poll.endDate).toLocaleDateString()}
+                        </span>
+                    </div>
+                    
+                    ${userRole !== 'user' ? `
+                        <button onclick="deletePoll('${doc.id}')" class="mt-3 w-full py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-all">
+                            <i class="fas fa-trash mr-2"></i>Delete Poll
+                        </button>
+                    ` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openVotingModal() {
+            document.getElementById('voting-modal').classList.add('active');
+            // Set default end date to 7 days from now
+            const date = new Date();
+            date.setDate(date.getDate() + 7);
+            document.getElementById('poll-end-date').value = date.toISOString().slice(0, 16);
+        }
+
+        async function createPoll(e) {
+            e.preventDefault();
+            const title = document.getElementById('poll-title').value;
+            const description = document.getElementById('poll-description').value;
+            const optionsText = document.getElementById('poll-options').value;
+            const endDate = document.getElementById('poll-end-date').value;
+            
+            const options = optionsText.split(',').map(opt => ({
+                text: opt.trim(),
+                votes: 0
+            })).filter(opt => opt.text);
+            
+            if (options.length < 2) {
+                showToast('Please provide at least 2 options', 'error');
+                return;
+            }
+            
+            try {
+                await db.collection('polls').add({
+                    title,
+                    description,
+                    options,
+                    endDate,
+                    active: true,
+                    createdBy: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Poll created successfully!', 'success');
+                closeModal('voting-modal');
+                loadPolls();
+                e.target.reset();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function vote(pollId, optionIndex) {
+            try {
+                // Check if user already voted
+                const voteCheck = await db.collection('votes')
+                    .where('pollId', '==', pollId)
+                    .where('userId', '==', currentUser.uid)
+                    .get();
+                
+                if (!voteCheck.empty) {
+                    showToast('You have already voted in this poll', 'error');
+                    return;
+                }
+                
+                // Record vote
+                await db.collection('votes').add({
+                    pollId,
+                    userId: currentUser.uid,
+                    optionIndex,
+                    votedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Update poll counts
+                const pollRef = db.collection('polls').doc(pollId);
+                await db.runTransaction(async (transaction) => {
+                    const pollDoc = await transaction.get(pollRef);
+                    const options = pollDoc.data().options;
+                    options[optionIndex].votes = (options[optionIndex].votes || 0) + 1;
+                    transaction.update(pollRef, { options });
+                });
+                
+                // Update engagement score
+                await db.collection('users').doc(currentUser.uid).update({
+                    engagementScore: firebase.firestore.FieldValue.increment(10)
+                });
+                
+                showToast('Vote recorded!', 'success');
+                loadPolls();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function deletePoll(pollId) {
+            if (!confirm('Are you sure you want to delete this poll?')) return;
+            
+            try {
+                await db.collection('polls').doc(pollId).delete();
+                showToast('Poll deleted', 'success');
+                loadPolls();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // ==========================================
+        // LOTTERY MODULE
+        // ==========================================
+        async function loadLotteryEvents() {
+            const container = document.getElementById('lottery-events-container');
+            const select = document.getElementById('entry-event-id');
+            
+            const snapshot = await db.collection('lotteryEvents').orderBy('createdAt', 'desc').get();
+            
+            container.innerHTML = '';
+            select.innerHTML = '<option value="">Choose an event...</option>';
+            
+            snapshot.forEach(doc => {
+                const event = doc.data();
+                
+                // Add to select
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = event.name;
+                select.appendChild(option);
+                
+                // Add card
+                const card = document.createElement('div');
+                card.className = 'glass rounded-xl p-6 hover-card cursor-pointer';
+                card.onclick = () => selectLotteryEvent(doc.id, event.name);
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 gradient-bg-2 rounded-lg flex items-center justify-center text-white text-xl">
+                            <i class="fas fa-ticket-alt"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-gray-800 dark:text-white">${event.name}</h3>
+                            <p class="text-sm text-gray-500">${new Date(event.createdAt?.toDate()).toLocaleDateString()}</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectLotteryEvent(eventId, eventName) {
+            currentLotteryEvent = eventId;
+            document.getElementById('active-lottery').classList.remove('hidden');
+            document.getElementById('active-lottery-title').textContent = eventName;
+            document.getElementById('entry-event-id').value = eventId;
+            loadLotteryParticipants(eventId);
+        }
+
+        async function loadLotteryParticipants(eventId) {
+            const snapshot = await db.collection('lotteryEntries')
+                .where('eventId', '==', eventId)
+                .get();
+            
+            document.getElementById('participant-count').textContent = snapshot.size;
+            
+            // Generate wheel segments
+            const wheel = document.getElementById('lottery-wheel');
+            wheel.innerHTML = '';
+            
+            if (snapshot.size === 0) {
+                wheel.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500">No participants yet</div>';
+                return;
+            }
+            
+            const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#06b6d4'];
+            const participants = [];
+            snapshot.forEach(doc => participants.push(doc.data()));
+            
+            const segmentAngle = 360 / participants.length;
+            
+            participants.forEach((p, i) => {
+                const segment = document.createElement('div');
+                segment.className = 'wheel-segment';
+                segment.style.transform = `rotate(${i * segmentAngle}deg)`;
+                segment.style.background = `conic-gradient(from 0deg, ${colors[i % colors.length]} 0deg, ${colors[i % colors.length]} ${segmentAngle}deg, transparent ${segmentAngle}deg)`;
+                segment.style.clipPath = `polygon(100% 0, 100% 100%, 0 100%)`;
+                segment.innerHTML = `<span style="transform: rotate(${segmentAngle/2}deg) translateX(20px); font-size: 12px;">${p.name}</span>`;
+                wheel.appendChild(segment);
+            });
+        }
+
+        function openLotteryModal() {
+            document.getElementById('lottery-modal').classList.add('active');
+            loadLotteryEventsList();
+        }
+
+        async function loadLotteryEventsList() {
+            const container = document.getElementById('lottery-events-list');
+            const snapshot = await db.collection('lotteryEvents').orderBy('createdAt', 'desc').get();
+            
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const event = doc.data();
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg';
+                div.innerHTML = `
+                    <span class="font-medium text-gray-800 dark:text-white">${event.name}</span>
+                    <button onclick="deleteLotteryEvent('${doc.id}')" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function createLotteryEvent(e) {
+            e.preventDefault();
+            const name = document.getElementById('lottery-event-name').value;
+            
+            try {
+                await db.collection('lotteryEvents').add({
+                    name,
+                    createdBy: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Event created!', 'success');
+                document.getElementById('lottery-event-name').value = '';
+                loadLotteryEventsList();
+                loadLotteryEvents();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function handleLotteryEntry(e) {
+            e.preventDefault();
+            const eventId = document.getElementById('entry-event-id').value;
+            const name = document.getElementById('entry-name').value;
+            const phone = document.getElementById('entry-phone').value;
+            const email = document.getElementById('entry-email').value;
+            
+            if (!eventId) {
+                showToast('Please select an event', 'error');
+                return;
+            }
+            
+            try {
+                // Check for duplicates
+                const dupCheck = await db.collection('lotteryEntries')
+                    .where('eventId', '==', eventId)
+                    .where('phone', '==', phone)
+                    .get();
+                
+                if (!dupCheck.empty) {
+                    showToast('This phone number is already registered', 'error');
+                    return;
+                }
+                
+                await db.collection('lotteryEntries').add({
+                    eventId,
+                    name,
+                    phone,
+                    email,
+                    enteredAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Entry successful! Good luck!', 'success');
+                e.target.reset();
+                loadLotteryParticipants(eventId);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function spinWheel() {
+            if (!currentLotteryEvent) {
+                showToast('Please select an event first', 'error');
+                return;
+            }
+            
+            const snapshot = await db.collection('lotteryEntries')
+                .where('eventId', '==', currentLotteryEvent)
+                .get();
+            
+            if (snapshot.empty) {
+                showToast('No participants in this lottery', 'error');
+                return;
+            }
+            
+            const participants = [];
+            snapshot.forEach(doc => participants.push(doc.data()));
+            
+            const winner = participants[Math.floor(Math.random() * participants.length)];
+            const spinBtn = document.getElementById('spin-btn');
+            const wheel = document.getElementById('lottery-wheel');
+            
+            spinBtn.disabled = true;
+            spinBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Spinning...';
+            
+            // Animate wheel
+            const spins = 5 + Math.random() * 5;
+            const finalAngle = Math.random() * 360;
+            wheel.style.transform = `rotate(${spins * 360 + finalAngle}deg)`;
+            
+            setTimeout(() => {
+                document.getElementById('winner-name').textContent = winner.name;
+                document.getElementById('winner-phone').textContent = winner.phone;
+                document.getElementById('winner-modal').classList.add('active');
+                createConfetti();
+                
+                // Save winner
+                db.collection('lotteryWinners').add({
+                    eventId: currentLotteryEvent,
+                    winner: winner,
+                    drawnAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                spinBtn.disabled = false;
+                spinBtn.innerHTML = '<i class="fas fa-play mr-2"></i>SPIN THE WHEEL';
+            }, 4000);
+        }
+
+        function resetWheel() {
+            document.getElementById('lottery-wheel').style.transform = 'rotate(0deg)';
+        }
+
+        function exportLotteryData() {
+            // Implementation for exporting lottery data
+            showToast('Export feature coming soon!', 'info');
+        }
+
+        // ==========================================
+        // QUIZ MODULE
+        // ==========================================
+        async function loadQuizzes() {
+            const container = document.getElementById('quiz-container');
+            const snapshot = await db.collection('quizzes').orderBy('createdAt', 'desc').get();
+            
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const quiz = doc.data();
+                const card = document.createElement('div');
+                card.className = 'glass rounded-xl p-6 hover-card cursor-pointer';
+                card.onclick = () => startQuiz(doc.id, quiz);
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 gradient-bg-3 rounded-lg flex items-center justify-center text-white text-xl">
+                            <i class="fas fa-question"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-gray-800 dark:text-white">${quiz.title}</h3>
+                            <p class="text-sm text-gray-500">${quiz.timer} seconds • ${quiz.options.length} options</p>
+                        </div>
+                        <i class="fas fa-play-circle text-3xl text-indigo-500"></i>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openQuizModal() {
+            document.getElementById('quiz-modal').classList.add('active');
+        }
+
+        async function createQuiz(e) {
+            e.preventDefault();
+            const title = document.getElementById('quiz-title').value;
+            const question = document.getElementById('quiz-question').value;
+            const optionsText = document.getElementById('quiz-options').value;
+            const correct = document.getElementById('quiz-correct').value;
+            const timer = parseInt(document.getElementById('quiz-timer-input').value);
+            
+            const options = optionsText.split(',').map(opt => opt.trim()).filter(opt => opt);
+            
+            try {
+                await db.collection('quizzes').add({
+                    title,
+                    question,
+                    options,
+                    correctAnswer: correct,
+                    timer,
+                    active: false,
+                    createdBy: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Quiz created!', 'success');
+                closeModal('quiz-modal');
+                loadQuizzes();
+                e.target.reset();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function startQuiz(quizId, quiz) {
+            currentQuiz = { id: quizId, ...quiz };
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('active-quiz-display').classList.remove('hidden');
+            document.getElementById('active-quiz-title').textContent = quiz.title;
+            document.getElementById('active-quiz-question').textContent = quiz.question;
+            document.getElementById('quiz-results').classList.add('hidden');
+            
+            // Load options
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            quiz.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'p-4 text-left rounded-xl border-2 border-gray-200 dark:border-slate-600 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-gray-800 dark:text-white font-medium';
+                btn.textContent = opt;
+                btn.onclick = () => submitQuizAnswer(idx);
+                optionsContainer.appendChild(btn);
+            });
+            
+            // Show visualization for admin
+            if (userRole !== 'user') {
+                document.getElementById('quiz-visualization').classList.remove('hidden');
+                document.getElementById('quiz-options').classList.add('hidden');
+                startQuizTimer();
+                listenForQuizResponses(quizId);
+            } else {
+                document.getElementById('quiz-visualization').classList.add('hidden');
+                document.getElementById('quiz-options').classList.remove('hidden');
+                startQuizTimer();
+            }
+        }
+
+        function startQuizTimer() {
+            let timeLeft = currentQuiz.timer;
+            const timerEl = document.getElementById('quiz-timer');
+            const barEl = document.getElementById('quiz-timer-bar');
+            
+            clearInterval(quizTimer);
+            quizTimer = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = timeLeft;
+                barEl.style.width = `${(timeLeft / currentQuiz.timer) * 100}%`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(quizTimer);
+                    endQuiz();
+                }
+            }, 1000);
+        }
+
+        async function submitQuizAnswer(answerIndex) {
+            clearInterval(quizTimer);
+            
+            try {
+                await db.collection('quizResponses').add({
+                    quizId: currentQuiz.id,
+                    userId: currentUser.uid,
+                    answer: currentQuiz.options[answerIndex],
+                    isCorrect: currentQuiz.options[answerIndex] === currentQuiz.correctAnswer,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Answer submitted!', 'success');
+                document.getElementById('quiz-options').innerHTML = '<p class="text-center text-gray-600 dark:text-gray-400">Waiting for results...</p>';
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        function listenForQuizResponses(quizId) {
+            db.collection('quizResponses')
+                .where('quizId', '==', quizId)
+                .onSnapshot(snapshot => {
+                    const responses = {};
+                    snapshot.forEach(doc => {
+                        const ans = doc.data().answer;
+                        responses[ans] = (responses[ans] || 0) + 1;
+                    });
+                    updateAnswerBubbles(responses);
+                });
+        }
+
+        function updateAnswerBubbles(responses) {
+            const container = document.getElementById('answer-bubbles');
+            container.innerHTML = '';
+            
+            const maxCount = Math.max(...Object.values(responses), 1);
+            const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
+            
+            Object.entries(responses).forEach(([answer, count], idx) => {
+                const size = 80 + (count / maxCount) * 100;
+                const bubble = document.createElement('div');
+                bubble.className = 'answer-bubble';
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                bubble.style.backgroundColor = colors[idx % colors.length];
+                bubble.style.opacity = 0.7 + (count / maxCount) * 0.3;
+                bubble.innerHTML = `<div><div class="font-bold">${answer}</div><div class="text-sm">${count}</div></div>`;
+                container.appendChild(bubble);
+            });
+        }
+
+        async function endQuiz() {
+            document.getElementById('quiz-results').classList.remove('hidden');
+            document.getElementById('correct-answer-text').textContent = currentQuiz.correctAnswer;
+            
+            // Get winners
+            const snapshot = await db.collection('quizResponses')
+                .where('quizId', '==', currentQuiz.id)
+                .where('isCorrect', '==', true)
+                .get();
+            
+            const winnersContainer = document.getElementById('winners-list');
+            winnersContainer.innerHTML = '';
+            
+            if (snapshot.empty) {
+                winnersContainer.innerHTML = '<span class="text-gray-500">No correct answers</span>';
+            } else {
+                snapshot.forEach(doc => {
+                    const span = document.createElement('span');
+                    span.className = 'px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-sm';
+                    span.textContent = 'Winner';
+                    winnersContainer.appendChild(span);
+                });
+            }
+        }
+
+        // ==========================================
+        // EVENTS MODULE
+        // ==========================================
+        async function loadEvents() {
+            const container = document.getElementById('events-container');
+            const snapshot = await db.collection('events').orderBy('date', 'asc').get();
+            
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const event = doc.data();
+                const isPast = new Date(event.date) < new Date();
+                
+                const card = document.createElement('div');
+                card.className = 'glass rounded-xl overflow-hidden hover-card';
+                card.innerHTML = `
+                    <div class="h-32 bg-gradient-to-r from-green-400 to-teal-500 flex items-center justify-center">
+                        <i class="fas fa-calendar-alt text-5xl text-white/50"></i>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg text-gray-800 dark:text-white">${event.title}</h3>
+                            ${isPast ? '<span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded">Past</span>' : '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 text-xs rounded">Upcoming</span>'}
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">${event.description || ''}</p>
+                        
+                        <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-calendar text-indigo-500"></i>
+                                ${new Date(event.date).toLocaleDateString()}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-map-marker-alt text-indigo-500"></i>
+                                ${event.location || 'TBA'}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-tag text-indigo-500"></i>
+                                ${event.cost > 0 ? `₹${event.cost}` : 'Free'}
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="showQRCode('${doc.id}')" class="flex-1 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-all">
+                                <i class="fas fa-qrcode mr-2"></i>QR Code
+                            </button>
+                            <button onclick="registerForEvent('${doc.id}')" class="flex-1 py-2 gradient-bg text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all">
+                                Register
+                            </button>
+                        </div>
+                        
+                        ${userRole !== 'user' ? `
+                            <button onclick="deleteEvent('${doc.id}')" class="w-full mt-2 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-all">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openEventModal() {
+            document.getElementById('event-modal').classList.add('active');
+            // Set default date to tomorrow
+            const date = new Date();
+            date.setDate(date.getDate() + 1);
+            document.getElementById('event-date').value = date.toISOString().split('T')[0];
+        }
+
+        async function createEvent(e) {
+            e.preventDefault();
+            const title = document.getElementById('event-title').value;
+            const description = document.getElementById('event-description').value;
+            const date = document.getElementById('event-date').value;
+            const cost = parseFloat(document.getElementById('event-cost').value) || 0;
+            const location = document.getElementById('event-location').value;
+            
+            try {
+                await db.collection('events').add({
+                    title,
+                    description,
+                    date,
+                    cost,
+                    location,
+                    createdBy: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Event created!', 'success');
+                closeModal('event-modal');
+                loadEvents();
+                e.target.reset();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        function showQRCode(eventId) {
+            document.getElementById('qr-modal').classList.add('active');
+            document.getElementById('qrcode').innerHTML = '';
+            
+            const url = `${window.location.origin}?event=${eventId}`;
+            new QRCode(document.getElementById('qrcode'), {
+                text: url,
+                width: 200,
+                height: 200,
+                colorDark: '#6366f1',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function downloadQR() {
+            const canvas = document.querySelector('#qrcode canvas');
+            const link = document.createElement('a');
+            link.download = 'event-qr.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        async function registerForEvent(eventId) {
+            try {
+                await db.collection('eventRegistrations').add({
+                    eventId,
+                    userId: currentUser.uid,
+                    registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Registered successfully!', 'success');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function deleteEvent(eventId) {
+            if (!confirm('Delete this event?')) return;
+            await db.collection('events').doc(eventId).delete();
+            showToast('Event deleted', 'success');
+            loadEvents();
+        }
+
+        // ==========================================
+        // ADMIN PANEL
+        // ==========================================
+        function switchAdminTab(tab) {
+            document.querySelectorAll('.admin-tab').forEach(t => {
+                t.classList.remove('active', 'bg-white', 'dark:bg-slate-700', 'text-indigo-600', 'dark:text-white', 'shadow-sm');
+                t.classList.add('text-gray-600', 'dark:text-gray-300');
+            });
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active', 'bg-white', 'dark:bg-slate-700', 'text-indigo-600', 'dark:text-white', 'shadow-sm');
+            document.querySelector(`[data-tab="${tab}"]`).classList.remove('text-gray-600', 'dark:text-gray-300');
+            
+            document.querySelectorAll('.admin-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`admin-${tab}`).classList.remove('hidden');
+        }
+
+        async function loadAdminData() {
+            // Load overview stats
+            const usersSnap = await db.collection('users').get();
+            const votesSnap = await db.collection('votes').get();
+            const eventsSnap = await db.collection('events').get();
+            
+            document.getElementById('total-users').textContent = usersSnap.size;
+            document.getElementById('total-votes').textContent = votesSnap.size;
+            document.getElementById('total-events').textContent = eventsSnap.size;
+            
+            // Create admin chart
+            const ctx = document.getElementById('adminChart').getContext('2d');
+            if (chartInstances.admin) chartInstances.admin.destroy();
+            
+            chartInstances.admin = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Users', 'Votes', 'Events', 'Quizzes', 'Lotteries'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [usersSnap.size, votesSnap.size, eventsSnap.size, 0, 0],
+                        backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function loadUsers() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-4 text-center">Loading...</td></tr>';
+            
+            const snapshot = await db.collection('users').get();
+            tbody.innerHTML = '';
+            
+            snapshot.forEach(doc => {
+                const user = doc.data();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">${user.name || 'N/A'}</div>
+                        <div class="text-sm text-gray-500">${user.email}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'superadmin' ? 'bg-purple-100 text-purple-800' : user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'}">
+                            ${user.role}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="changeUserRole('${doc.id}', '${user.role}')" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3">Change Role</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function createAdmin(e) {
+            e.preventDefault();
+            const email = document.getElementById('new-admin-email').value;
+            const password = document.getElementById('new-admin-password').value;
+            const role = document.getElementById('new-admin-role').value;
+            
+            try {
+                // Create user
+                const userCred = await auth.createUserWithEmailAndPassword(email, password);
+                await db.collection('users').doc(userCred.user.uid).set({
+                    email,
+                    role,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Admin created!', 'success');
+                e.target.reset();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function exportData(type) {
+            try {
+                showToast(`Exporting ${type} data...`, 'info');
+
+                let wb = XLSX.utils.book_new();
+
+                if (type === 'votes') {
+                    const polls = await db.collection('polls').get();
+                    const data = [['Poll Title', 'Option', 'Votes', 'Created Date']];
+                    polls.forEach(doc => {
+                        const p = doc.data();
+                        if (p.options) {
+                            p.options.forEach(opt => {
+                                data.push([p.title, opt.text, opt.votes || 0, p.createdAt ? new Date(p.createdAt.toDate()).toLocaleString() : '']);
+                            });
+                        }
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Voting Data');
+                    XLSX.writeFile(wb, 'voting_data_export.xlsx');
+
+                } else if (type === 'lottery') {
+                    const entries = await db.collection('lotteryEntries').get();
+                    const data = [['Event ID', 'Name', 'Phone', 'Email', 'Date']];
+                    entries.forEach(doc => {
+                        const e = doc.data();
+                        data.push([e.eventId, e.name, e.phone, e.email || '', e.enteredAt ? new Date(e.enteredAt.toDate()).toLocaleString() : '']);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Lottery Data');
+                    XLSX.writeFile(wb, 'lottery_data_export.xlsx');
+
+                } else if (type === 'quiz') {
+                    const responses = await db.collection('quizResponses').get();
+                    const data = [['Quiz ID', 'Answer', 'Correct', 'Date']];
+                    responses.forEach(doc => {
+                        const r = doc.data();
+                        data.push([r.quizId, r.answer, r.isCorrect ? 'Yes' : 'No', r.submittedAt ? new Date(r.submittedAt.toDate()).toLocaleString() : '']);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Quiz Data');
+                    XLSX.writeFile(wb, 'quiz_data_export.xlsx');
+
+                } else if (type === 'events') {
+                    const events = await db.collection('events').get();
+                    const data = [['Event Title', 'Date', 'Cost (Rs)', 'Location']];
+                    events.forEach(doc => {
+                        const e = doc.data();
+                        data.push([e.title, e.date, e.cost, e.location]);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, 'Event Data');
+                    XLSX.writeFile(wb, 'events_data_export.xlsx');
+                }
+
+                showToast('Export complete! Check your downloads.', 'success');
+            } catch (error) {
+                showToast('Export failed: ' + error.message, 'error');
+            }
+        }
+
+        function backupDatabase() {
+            showToast('Creating backup...', 'info');
+            document.getElementById('last-backup').textContent = new Date().toLocaleString();
+        }
+
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-2"></i>${message}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function createConfetti() {
+            const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 5000);
+            }
+        }
+
+        // Close modals on outside click
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        });
+
+        // Check for event QR code in URL
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const eventId = params.get('event');
+            if (eventId) {
+                // Auto-fill event registration
+                setTimeout(() => {
+                    document.getElementById('events-section').classList.remove('hidden');
+                    registerForEvent(eventId);
+                }, 1000);
+            }
+        });
+    
+
+        // ==================== NEW FIXES ====================
+
+        // Close lottery event view
+        function closeLotteryEvent() {
+            document.getElementById('active-lottery').classList.add('hidden');
+            document.getElementById('lottery-entry-form').classList.remove('hidden');
+            currentLotteryEvent = null;
+        }
+
+        // Reset lottery data (clear all participants)
+        async function resetLotteryData() {
+            if (!currentLotteryEvent) return;
+            if (!confirm('Clear all participants from this event?')) return;
+
+            try {
+                const snapshot = await db.collection('lotteryEntries').where('eventId', '==', currentLotteryEvent).get();
+                const batch = db.batch();
+                snapshot.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                showToast('All participants cleared', 'success');
+                loadLotteryParticipants(currentLotteryEvent);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // Download sample Excel format
+        function downloadSampleExcel(type) {
+            let data, filename;
+            if (type === 'lottery') {
+                data = [['Name', 'Phone', 'Email'], ['John Doe', '9876543210', 'john@example.com']];
+                filename = 'lottery_participants_sample.xlsx';
+            } else {
+                data = [['Event Title', 'Description', 'Date (YYYY-MM-DD)', 'Cost (Rs)', 'Location'], 
+                        ['Annual Meet 2024', 'Company annual meeting', '2024-12-31', '500', 'Mumbai Office']];
+                filename = 'events_sample.xlsx';
+            }
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Sample');
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Open bulk upload modal
+        function openBulkUploadModal() {
+            document.getElementById('bulk-upload-modal').classList.add('active');
+        }
+
+        // Process bulk upload
+        async function processBulkUpload() {
+            const fileInput = document.getElementById('bulk-upload-file');
+            const file = fileInput.files[0];
+            if (!file) {
+                showToast('Please select a file', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+                    let count = 0;
+                    for (const row of json) {
+                        if (row.Name && row.Phone && currentLotteryEvent) {
+                            await db.collection('lotteryEntries').add({
+                                eventId: currentLotteryEvent,
+                                name: row.Name,
+                                phone: String(row.Phone),
+                                email: row.Email || '',
+                                enteredAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            count++;
+                        }
+                    }
+
+                    showToast(`Uploaded ${count} participants!`, 'success');
+                    closeModal('bulk-upload-modal');
+                    loadLotteryParticipants(currentLotteryEvent);
+                    fileInput.value = '';
+                } catch (err) {
+                    showToast('Upload failed: ' + err.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Show voting report
+        async function showVotingReport() {
+            document.getElementById('voting-report-modal').classList.add('active');
+            const container = document.getElementById('voting-reports-container');
+            container.innerHTML = '<div class="text-center py-8"><div class="loader mx-auto"></div></div>';
+
+            try {
+                const snapshot = await db.collection('polls').get();
+                container.innerHTML = '';
+
+                if (snapshot.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500">No polls found</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const poll = doc.data();
+                    const total = poll.options ? poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0) : 0;
+
+                    const div = document.createElement('div');
+                    div.className = 'glass rounded-xl p-4 mb-4';
+                    div.innerHTML = `
+                        <h4 class="font-bold text-lg mb-2">${poll.title}</h4>
+                        <p class="text-sm text-gray-500 mb-3">${total} total votes</p>
+                        <div class="space-y-2">
+                            ${poll.options ? poll.options.map(opt => {
+                                const pct = total > 0 ? Math.round((opt.votes || 0) / total * 100) : 0;
+                                return `<div class="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-800 rounded">
+                                    <span>${opt.text}</span>
+                                    <span class="font-medium">${opt.votes || 0} (${pct}%)</span>
+                                </div>`;
+                            }).join('') : ''}
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (error) {
+                container.innerHTML = `<p class="text-center text-red-500">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Close quiz view
+        function closeQuizView() {
+            clearInterval(quizTimer);
+            document.getElementById('active-quiz-display').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            currentQuiz = null;
+        }
+
+        // ==================== SUPER ADMIN FUNCTIONS ====================
+
+        // Load super admin data
+        async function loadSuperAdminData() {
+            loadAdminUsers();
+        }
+
+        // Load admin users list
+        async function loadAdminUsers() {
+            const container = document.getElementById('admin-users-list');
+            if (!container) return;
+
+            container.innerHTML = '<div class="text-center py-4"><div class="loader mx-auto"></div></div>';
+
+            try {
+                const snapshot = await db.collection('users').where('role', 'in', ['admin', 'superadmin']).get();
+                container.innerHTML = '';
+
+                if (snapshot.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500">No admin users</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-700 rounded-lg';
+                    div.innerHTML = `
+                        <div>
+                            <span class="font-medium">${user.name || user.email}</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full ${user.role === 'superadmin' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'} ml-2">${user.role}</span>
+                        </div>
+                        ${user.email !== 'sandipnandi2000@gmail.com' ? `
+                            <button onclick="deleteAdmin('${doc.id}')" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : '<span class="text-xs text-gray-400">Protected</span>'}
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (error) {
+                container.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Create new admin
+        async function createAdmin(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-admin-name').value;
+            const email = document.getElementById('new-admin-email').value;
+            const password = document.getElementById('new-admin-password').value;
+            const role = document.getElementById('new-admin-role').value;
+
+            try {
+                showToast('Creating admin...', 'info');
+                const userCred = await auth.createUserWithEmailAndPassword(email, password);
+                await userCred.user.updateProfile({ displayName: name });
+                await db.collection('users').doc(userCred.user.uid).set({
+                    name, email, role,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast('Admin created!', 'success');
+                e.target.reset();
+                loadAdminUsers();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Delete admin
+        async function deleteAdmin(userId) {
+            if (!confirm('Remove admin privileges?')) return;
+            try {
+                await db.collection('users').doc(userId).update({ role: 'user' });
+                showToast('Admin removed', 'success');
+                loadAdminUsers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // Backup database
+        async function backupDatabase() {
+            try {
+                showToast('Creating backup...', 'info');
+                const collections = ['users', 'polls', 'votes', 'lotteryEvents', 'lotteryEntries', 'lotteryWinners', 'quizzes', 'quizResponses', 'events', 'eventRegistrations'];
+                const backup = {};
+
+                for (const col of collections) {
+                    const snapshot = await db.collection(col).get();
+                    backup[col] = {};
+                    snapshot.forEach(doc => {
+                        backup[col][doc.id] = doc.data();
+                    });
+                }
+
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `engagio_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('Backup downloaded!', 'success');
+            } catch (error) {
+                showToast('Backup failed: ' + error.message, 'error');
+            }
+        }
+
+        // Switch super admin tab
+        function switchSuperAdminTab(tab) {
+            document.querySelectorAll('.super-admin-tab').forEach(t => {
+                t.classList.remove('active', 'bg-white', 'dark:bg-slate-700', 'text-amber-600', 'shadow-sm');
+                t.classList.add('text-gray-600');
+            });
+            const activeTab = document.querySelector(`[data-tab="${tab}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active', 'bg-white', 'dark:bg-slate-700', 'text-amber-600', 'shadow-sm');
+                activeTab.classList.remove('text-gray-600');
+            }
+
+            document.querySelectorAll('.super-admin-content').forEach(c => c.classList.add('hidden'));
+            const content = document.getElementById(`superadmin-${tab}`);
+            if (content) content.classList.remove('hidden');
+        }
+
+        // Clear collection (super admin only)
+        async function clearCollection(collectionName) {
+            if (!confirm(`WARNING: Delete ALL data from ${collectionName}?`)) return;
+            if (!confirm('This cannot be undone. Confirm?')) return;
+
+            try {
+                showToast('Clearing...', 'info');
+                const snapshot = await db.collection(collectionName).get();
+                const batch = db.batch();
+                snapshot.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                showToast(`${collectionName} cleared!`, 'success');
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== END NEW FIXES ====================
+
+    </script>
+</body>
+</html>
